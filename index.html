@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>FkMe — Modern Dating & Match App (Instant Preview)</title>
+  <meta name="description" content="Experience the next generation dating and connection web app with swipe gestures, blind date chat, AI responses, and interactive profiles." />
+  <meta name="theme-color" content="#f43f5e" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0', transform: 'scale(0.96)' },
+              '100%': { opacity: '1', transform: 'scale(1)' },
+            },
+            swipeRight: {
+              '0%': { transform: 'translateX(0) rotate(0deg)', opacity: '1' },
+              '100%': { transform: 'translateX(350px) rotate(22deg)', opacity: '0' },
+            },
+            swipeLeft: {
+              '0%': { transform: 'translateX(0) rotate(0deg)', opacity: '1' },
+              '100%': { transform: 'translateX(-350px) rotate(-22deg)', opacity: '0' },
+            },
+            swipeUp: {
+              '0%': { transform: 'translateY(0) scale(1)', opacity: '1' },
+              '100%': { transform: 'translateY(-350px) scale(1.1)', opacity: '0' },
+            }
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.25s ease-out forwards',
+            'swipe-right': 'swipeRight 0.3s ease-out forwards',
+            'swipe-left': 'swipeLeft 0.3s ease-out forwards',
+            'swipe-up': 'swipeUp 0.3s ease-out forwards',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React 18 and Babel Standalone -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #020617;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+    ::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, 0.8); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(244, 63, 94, 0.6); }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // --- SOUND EFFECTS (Web Audio API Synthesizer) ---
+    const playSoundEffect = (type, enabled = true) => {
+      if (!enabled || typeof window === 'undefined') return;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        if (type === 'swipe') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(320, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(140, ctx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.12, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.16);
+        } else if (type === 'superlike') {
+          [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.06);
+            gain.gain.setValueAtTime(0.1, ctx.currentTime + i * 0.06);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.06 + 0.18);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime + i * 0.06);
+            osc.stop(ctx.currentTime + i * 0.06 + 0.2);
+          });
+        } else if (type === 'match') {
+          [440, 554.37, 659.25, 880].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.08);
+            gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.08 + 0.25);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime + i * 0.08);
+            osc.stop(ctx.currentTime + i * 0.08 + 0.26);
+          });
+        } else if (type === 'message') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(600, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.1);
+          gain.gain.setValueAtTime(0.08, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.12);
+        }
+      } catch (e) {}
+    };
+
+    // --- SVG ICONS (Clean, zero external dependencies) ---
+    const Flame = ({ className = "w-6 h-6" }) => (
+      <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+        <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+      </svg>
+    );
+
+    const Heart = ({ className = "w-6 h-6" }) => (
+      <svg className={className} fill="currentColor" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+      </svg>
+    );
+
+    const X = ({ className = "w-6 h-6" }) => (
+      <svg className={className} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <path d="M18 6 6 18M6 6l12 12"/>
+      </svg>
+    );
+
+    const Star = ({ className = "w-6 h-6" }) => (
+      <svg className={className} fill="currentColor" stroke="currentColor" strokeWidth="1" viewBox="0 0 24 24">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      </svg>
+    );
+
+    const RotateCcw = ({ className = "w-6 h-6" }) => (
+      <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+        <path d="M3 3v5h5"/>
+      </svg>
+    );
+
+    const MessageSquare = ({ className = "w-6 h-6" }) => (
+      <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    );
+
+    const Compass = ({ className = "w-6 h-6" }) => (
+      <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/>
+        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+      </svg>
+    );
+
+    const CheckCircle = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+    );
+
+    const MapPin = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+        <circle cx="12" cy="10" r="3"/>
+      </svg>
+    );
+
+    const Sparkles = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+      </svg>
+    );
+
+    const Camera = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+        <circle cx="12" cy="13" r="3"/>
+      </svg>
+    );
+
+    const Send = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <line x1="22" y1="2" x2="11" y2="13"/>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+    );
+
+    const Smile = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+        <line x1="9" y1="9" x2="9.01" y2="9"/>
+        <line x1="15" y1="9" x2="15.01" y2="9"/>
+      </svg>
+    );
+
+    const Sliders = ({ className = "w-5 h-5" }) => (
+      <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <line x1="4" y1="21" x2="4" y2="14"/>
+        <line x1="4" y1="10" x2="4" y2="3"/>
+        <line x1="12" y1="21" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12" y2="3"/>
+        <line x1="20" y1="21" x2="20" y2="16"/>
+        <line x1="20" y1="12" x2="20" y2="3"/>
+        <line x1="1" y1="14" x2="7" y2="14"/>
+        <line x1="9" y1="8" x2="15" y2="8"/>
+        <line x1="17" y1="16" x2="23" y2="16"/>
+      </svg>
+    );
+
+    const RefreshCw = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+        <path d="M21 3v5h-5"/>
+        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+        <path d="M8 16H3v5"/>
+      </svg>
+    );
+
+    const Zap = ({ className = "w-6 h-6" }) => (
+      <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+      </svg>
+    );
+
+    const Volume2 = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+      </svg>
+    );
+
+    const VolumeX = ({ className = "w-4 h-4" }) => (
+      <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+        <line x1="23" y1="9" x2="17" y2="15"/>
+        <line x1="17" y1="9" x2="23" y2="15"/>
+      </svg>
+    );
+
+    // --- MOCK PROFILES ---
+    const MOCK_PROFILES = [
+      {
+        id: 1,
+        name: "Elena Rostova",
+        age: 26,
+        distance: "3 miles away",
+        occupation: "UX Architect & Digital Artist",
+        location: "Downtown, Tech District",
+        verified: true,
+        bio: "Obsessed with cozy cafes, synthwave vinyls, and architectural photography. Looking for someone who can beat me at Mario Kart and loves spontaneous road trips! ☕🎨✨",
+        photos: [
+          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80",
+          "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80",
+          "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80"
+        ],
+        interests: ["Design", "Art", "Coffee", "Photography", "Gaming"],
+        lookingFor: "Long-term connection",
+        height: "5'7\"",
+        astrology: "Scorpio",
+        prompt: {
+          question: "Two truths and a lie...",
+          answer: "I've skydived twice, I speak three languages fluently, and I've never had a cup of tea."
+        }
+      },
+      {
+        id: 2,
+        name: "Marcus Vance",
+        age: 29,
+        distance: "5 miles away",
+        occupation: "Software Engineer & Cyclist",
+        location: "West End",
+        verified: true,
+        bio: "Building cool tech by day, trail riding and sourdough baking by night. Big fan of indie rock, craft beers, and weekend camping trips. Let's exchange spotify playlists! 🚴‍♂️🎸",
+        photos: [
+          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80",
+          "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=800&q=80"
+        ],
+        interests: ["Cycling", "Baking", "Tech", "Camping", "Rock Music"],
+        lookingFor: "Casual dating & fun",
+        height: "6'1\"",
+        astrology: "Leo",
+        prompt: {
+          question: "The key to my heart is...",
+          answer: "Fresh homemade sourdough, coffee beans from local roasters, and a good sense of humor."
+        }
+      },
+      {
+        id: 3,
+        name: "Sophia Lin",
+        age: 24,
+        distance: "2 miles away",
+        occupation: "Fashion Stylist & Foodie",
+        location: "Arts Quarter",
+        verified: true,
+        bio: "Searching for the best ramen in town 🍜 Fashion enthusiast, dog mom to a golden retriever named Matcha, and sunset chaser. Teach me something I don't know!",
+        photos: [
+          "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=800&q=80",
+          "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=80"
+        ],
+        interests: ["Fashion", "Foodie", "Dogs", "Travel", "Yoga"],
+        lookingFor: "Serious relationship",
+        height: "5'5\"",
+        astrology: "Libra",
+        prompt: {
+          question: "My simple pleasures...",
+          answer: "Golden hour walks with my dog and finding hidden speakeasy bars on Friday nights."
+        }
+      },
+      {
+        id: 4,
+        name: "Liam O'Connor",
+        age: 28,
+        distance: "7 miles away",
+        occupation: "Fitness Coach & Chef",
+        location: "Harbor View",
+        verified: false,
+        bio: "Passionate about health, culinary experiments, and ocean sports. Always ready for a sunrise surf session or making homemade pasta for dinner. 🏄‍♂️🍝",
+        photos: [
+          "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=800&q=80",
+          "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=800&q=80"
+        ],
+        interests: ["Fitness", "Cooking", "Surfing", "Wellness", "Wine Tasting"],
+        lookingFor: "New friends & dating",
+        height: "6'0\"",
+        astrology: "Aries",
+        prompt: {
+          question: "I'll know I've found someone special when...",
+          answer: "We can cook together without arguing about who does the dishes!"
+        }
+      },
+      {
+        id: 5,
+        name: "Aaliyah Chen",
+        age: 27,
+        distance: "4 miles away",
+        occupation: "Environmental Scientist",
+        location: "Greenbelt District",
+        verified: true,
+        bio: "Plant enthusiast 🌿 (50+ and counting), environmentalist, and avid reader. Let's grab boba and talk about books, travel dreams, or climate tech solutions!",
+        photos: [
+          "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80",
+          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80"
+        ],
+        interests: ["Plants", "Hiking", "Books", "Sustainability", "Boba"],
+        lookingFor: "Life partner",
+        height: "5'6\"",
+        astrology: "Taurus",
+        prompt: {
+          question: "Unusual skill...",
+          answer: "I can keep demanding tropical house plants alive through harsh winters."
+        }
+      }
+    ];
+
+    const INITIAL_MATCHES = [
+      {
+        id: 1,
+        profile: MOCK_PROFILES[0],
+        lastMessage: "Hey! Loved your profile picture. How was your weekend?",
+        timestamp: "10:42 AM",
+        unread: true,
+        chatHistory: [
+          { sender: 'them', text: "Hey! Loved your profile picture. How was your weekend?", time: "10:42 AM" }
+        ]
+      },
+      {
+        id: 3,
+        profile: MOCK_PROFILES[2],
+        lastMessage: "I know the absolute best ramen place in town! We should go!",
+        timestamp: "Yesterday",
+        unread: false,
+        chatHistory: [
+          { sender: 'them', text: "I know the absolute best ramen place in town! We should go!", time: "Yesterday" }
+        ]
+      }
+    ];
+
+    const EXPLORE_TOPICS = [
+      { id: 1, title: "Foodies Near You", desc: "Connect over late night ramen & craft coffee", icon: "🍜", color: "from-amber-500 to-red-500", count: "140+ active" },
+      { id: 2, title: "Night Owls", desc: "For those who thrive past midnight", icon: "🌙", color: "from-indigo-600 to-purple-600", count: "85+ active" },
+      { id: 3, title: "Outdoor Adventurers", desc: "Hikers, surfers & trail runners", icon: "🌲", color: "from-emerald-500 to-teal-600", count: "210+ active" },
+      { id: 4, title: "Gamers & Creatives", desc: "Vinyl lovers, digital artists & gamers", icon: "🎨", color: "from-pink-500 to-rose-600", count: "95+ active" }
+    ];
+
+    const QUICK_EMOJIS = ["❤️", "🔥", "😊", "✨", "🍕", "☕", "🎉", "👀", "🙌", "💯"];
+
+    const ConfettiEffect = () => {
+      const pieces = Array.from({ length: 48 });
+      return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-50">
+          {pieces.map((_, i) => {
+            const left = Math.random() * 100;
+            const delay = Math.random() * 1.8;
+            const color = ['#f43f5e', '#ec4899', '#8b5cf6', '#3b82f6', '#eab308', '#10b981'][i % 6];
+            return (
+              <div
+                key={i}
+                className="absolute w-2.5 h-2.5 rounded-sm animate-bounce opacity-90"
+                style={{
+                  left: `${left}%`,
+                  top: `-12px`,
+                  backgroundColor: color,
+                  animationDuration: `${2.2 + Math.random() * 2}s`,
+                  animationDelay: `${delay}s`,
+                  transform: `rotate(${Math.random() * 360}deg)`
+                }}
+              />
+            );
+          })}
+        </div>
+      );
+    };
+
+    function App() {
+      const [activeTab, setActiveTab] = useState('discover');
+      const [profiles, setProfiles] = useState(MOCK_PROFILES);
+      const [currentIndex, setCurrentIndex] = useState(0);
+      const [photoIndex, setPhotoIndex] = useState(0);
+      const [lastAction, setLastAction] = useState(null);
+      const [history, setHistory] = useState([]);
+
+      const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+      const [isDragging, setIsDragging] = useState(false);
+      const dragStartRef = useRef({ x: 0, y: 0 });
+
+      const [matchedProfile, setMatchedProfile] = useState(null);
+      const [showMatchModal, setShowMatchModal] = useState(false);
+
+      const [matches, setMatches] = useState(INITIAL_MATCHES);
+      const [activeChat, setActiveChat] = useState(null);
+      const [messageInput, setMessageInput] = useState('');
+      const [isTyping, setIsTyping] = useState(false);
+      const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+      const [showBlindDateModal, setShowBlindDateModal] = useState(false);
+      const [blindDateAnswer, setBlindDateAnswer] = useState(null);
+      const [blindDateMatched, setBlindDateMatched] = useState(false);
+
+      const [userProfile, setUserProfile] = useState({
+        name: "Alex Taylor",
+        age: 26,
+        bio: "Passionate photographer & tech builder based in the city. Always searching for good music, street food, and bright ideas.",
+        photos: [
+          "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=800&q=80"
+        ],
+        interests: ["Photography", "Tech", "Travel", "Music", "Coffee"],
+        distanceRange: 25,
+        ageRange: [21, 32],
+        genderPref: "Everyone",
+        notifications: true,
+        incognito: false,
+        soundEffects: true
+      });
+
+      const [isEditingProfile, setIsEditingProfile] = useState(false);
+      const [editFormData, setEditFormData] = useState({
+        name: userProfile.name,
+        age: userProfile.age,
+        bio: userProfile.bio
+      });
+
+      const currentCard = profiles[currentIndex];
+      const chatEndRef = useRef(null);
+
+      useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, [activeChat, matches, isTyping]);
+
+      const handleSwipe = (direction) => {
+        if (!currentCard) return;
+        setLastAction(direction);
+        setHistory(prev => [...prev, { profile: currentCard, index: currentIndex }]);
+
+        if (direction === 'superlike') {
+          playSoundEffect('superlike', userProfile.soundEffects);
+        } else {
+          playSoundEffect('swipe', userProfile.soundEffects);
+        }
+
+        if (direction === 'like' || direction === 'superlike') {
+          if (currentCard.id === 1 || Math.random() > 0.35) {
+            setTimeout(() => {
+              setMatchedProfile(currentCard);
+              setShowMatchModal(true);
+              playSoundEffect('match', userProfile.soundEffects);
+            }, 220);
+
+            if (!matches.some(m => m.profile.id === currentCard.id)) {
+              setMatches(prev => [
+                {
+                  id: currentCard.id,
+                  profile: currentCard,
+                  lastMessage: direction === 'superlike' ? "You Super Liked Elena!" : "It's a Match! Say hi!",
+                  timestamp: "Just now",
+                  unread: true,
+                  chatHistory: [
+                    { sender: 'them', text: `Hey ${userProfile.name}! Thanks for the ${direction === 'superlike' ? 'Super Like' : 'match'}! Love your vibe ✨`, time: "Just now" }
+                  ]
+                },
+                ...prev
+              ]);
+            }
+          }
+        }
+
+        setTimeout(() => {
+          setLastAction(null);
+          setCurrentIndex(prev => prev + 1);
+          setPhotoIndex(0);
+          setDragOffset({ x: 0, y: 0 });
+        }, 280);
+      };
+
+      const handlePointerDown = (e) => {
+        setIsDragging(true);
+        dragStartRef.current = { x: e.clientX || (e.touches && e.touches[0].clientX) || 0, y: e.clientY || (e.touches && e.touches[0].clientY) || 0 };
+      };
+
+      const handlePointerMove = (e) => {
+        if (!isDragging) return;
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+        setDragOffset({ x: clientX - dragStartRef.current.x, y: clientY - dragStartRef.current.y });
+      };
+
+      const handlePointerUp = () => {
+        if (!isDragging) return;
+        setIsDragging(false);
+        if (dragOffset.x > 110) {
+          handleSwipe('like');
+        } else if (dragOffset.x < -110) {
+          handleSwipe('pass');
+        } else if (dragOffset.y < -120) {
+          handleSwipe('superlike');
+        } else {
+          setDragOffset({ x: 0, y: 0 });
+        }
+      };
+
+      const handleRewind = () => {
+        if (history.length === 0) return;
+        const lastItem = history[history.length - 1];
+        setHistory(prev => prev.slice(0, -1));
+        setCurrentIndex(lastItem.index);
+        setPhotoIndex(0);
+        playSoundEffect('swipe', userProfile.soundEffects);
+      };
+
+      const nextPhoto = (e) => {
+        e.stopPropagation();
+        if (currentCard && photoIndex < currentCard.photos.length - 1) {
+          setPhotoIndex(prev => prev + 1);
+        }
+      };
+
+      const prevPhoto = (e) => {
+        e.stopPropagation();
+        if (photoIndex > 0) {
+          setPhotoIndex(prev => prev - 1);
+        }
+      };
+
+      const sendMessage = (e) => {
+        e?.preventDefault();
+        if (!messageInput.trim() || !activeChat) return;
+
+        const userText = messageInput.trim();
+        const newMsg = {
+          sender: 'me',
+          text: userText,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        playSoundEffect('message', userProfile.soundEffects);
+
+        setMatches(prevMatches =>
+          prevMatches.map(m => {
+            if (m.id === activeChat.id) {
+              return {
+                ...m,
+                lastMessage: `You: ${newMsg.text}`,
+                timestamp: "Just now",
+                chatHistory: [...m.chatHistory, newMsg]
+              };
+            }
+            return m;
+          })
+        );
+
+        setMessageInput('');
+        setShowEmojiPicker(false);
+
+        setIsTyping(true);
+        setTimeout(() => {
+          setIsTyping(false);
+          const aiResponses = [
+            "That sounds amazing! Tell me more about it 😊",
+            "Haha totally agree! So what are your plans for this weekend?",
+            "Oh really? I was actually thinking about the exact same thing!",
+            "That's so cool! We definitely have a lot in common.",
+            "Nice! I'd love to chat more about this over coffee sometime ☕",
+            "You have great taste! What other music or hobbies are you into?",
+            "Haha you're fun to talk to! Glad we connected ✨"
+          ];
+
+          const replyText = aiResponses[Math.floor(Math.random() * aiResponses.length)];
+          const replyMsg = {
+            sender: 'them',
+            text: replyText,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+
+          playSoundEffect('message', userProfile.soundEffects);
+
+          setMatches(prevMatches =>
+            prevMatches.map(m => {
+              if (m.id === activeChat.id) {
+                return {
+                  ...m,
+                  lastMessage: replyText,
+                  timestamp: "Just now",
+                  chatHistory: [...m.chatHistory, replyMsg]
+                };
+              }
+              return m;
+            })
+          );
+        }, 1400);
+      };
+
+      const resetProfiles = () => {
+        setCurrentIndex(0);
+        setHistory([]);
+        playSoundEffect('swipe', userProfile.soundEffects);
+      };
+
+      const cardRotation = dragOffset.x * 0.08;
+      const cardTransform = `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0) rotate(${cardRotation}deg)`;
+
+      return (
+        <div className="flex flex-col h-screen w-full bg-slate-950 text-slate-100 font-sans overflow-hidden select-none">
+          <header className="flex items-center justify-between px-4 sm:px-6 py-3 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 z-40">
+            <div onClick={() => setActiveTab('discover')} className="flex items-center gap-2 cursor-pointer group">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-500 via-pink-500 to-purple-600 flex items-center justify-center shadow-lg shadow-rose-500/20 group-hover:scale-105 transition-transform">
+                <Flame className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-black tracking-wider bg-gradient-to-r from-rose-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+                  FkMe
+                </h1>
+                <span className="text-[10px] text-slate-400 font-medium tracking-widest block -mt-1 uppercase">Dating & Match</span>
+              </div>
+            </div>
+
+            <nav className="flex items-center gap-1 sm:gap-2 bg-slate-800/60 p-1 rounded-2xl border border-slate-700/50">
+              <button
+                onClick={() => setActiveTab('discover')}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  activeTab === 'discover'
+                    ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-500/20'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                }`}
+              >
+                <Flame className="w-4 h-4" />
+                <span className="hidden md:inline">Swipe</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('explore')}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  activeTab === 'explore'
+                    ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-500/20'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                }`}
+              >
+                <Compass className="w-4 h-4" />
+                <span className="hidden md:inline">Explore</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('matches')}
+                className={`relative flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  activeTab === 'matches'
+                    ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-500/20'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                }`}
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span className="hidden md:inline">Chats</span>
+                {matches.some(m => m.unread) && (
+                  <span className="w-2.5 h-2.5 bg-rose-500 rounded-full animate-ping absolute top-1.5 right-1.5 sm:static sm:animate-none" />
+                )}
+              </button>
+            </nav>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setUserProfile(p => ({ ...p, soundEffects: !p.soundEffects }))}
+                className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                title={userProfile.soundEffects ? "Mute sounds" : "Enable sounds"}
+              >
+                {userProfile.soundEffects ? <Volume2 className="w-4 h-4 text-rose-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
+              </button>
+              <button
+                onClick={() => setActiveTab('profile')}
+                className={`flex items-center gap-2 p-1 rounded-full border-2 transition-all ${
+                  activeTab === 'profile' ? 'border-rose-500 ring-2 ring-rose-500/30' : 'border-slate-700 hover:border-slate-500'
+                }`}
+              >
+                <img src={userProfile.photos[0]} alt="Avatar" className="w-8 h-8 rounded-full object-cover" />
+              </button>
+            </div>
+          </header>
+
+          <main className="flex-1 relative overflow-hidden flex flex-col items-center justify-center p-2 sm:p-4">
+            {activeTab === 'discover' && (
+              <div className="w-full max-w-sm sm:max-w-md h-full max-h-[720px] flex flex-col justify-between relative">
+                {currentCard ? (
+                  <div
+                    onMouseDown={handlePointerDown}
+                    onMouseMove={handlePointerMove}
+                    onMouseUp={handlePointerUp}
+                    onTouchStart={handlePointerDown}
+                    onTouchMove={handlePointerMove}
+                    onTouchEnd={handlePointerUp}
+                    style={{
+                      transform: isDragging ? cardTransform : undefined,
+                      transition: isDragging ? 'none' : 'transform 0.3s ease-out'
+                    }}
+                    className={`relative w-full h-full flex flex-col rounded-3xl overflow-hidden bg-slate-900 border border-slate-800 shadow-2xl transition-all duration-300 cursor-grab active:cursor-grabbing ${
+                      lastAction === 'like' ? 'animate-swipe-right' :
+                      lastAction === 'pass' ? 'animate-swipe-left' :
+                      lastAction === 'superlike' ? 'animate-swipe-up' : ''
+                    }`}
+                  >
+                    {(lastAction === 'like' || dragOffset.x > 30) && (
+                      <div style={{ opacity: isDragging ? Math.min(1, dragOffset.x / 100) : 1 }} className="absolute top-10 left-6 z-30 border-4 border-emerald-500 text-emerald-500 font-extrabold text-3xl px-4 py-1 rounded-xl tracking-wider transform -rotate-12 animate-pulse bg-slate-950/40">
+                        LIKE
+                      </div>
+                    )}
+                    {(lastAction === 'pass' || dragOffset.x < -30) && (
+                      <div style={{ opacity: isDragging ? Math.min(1, Math.abs(dragOffset.x) / 100) : 1 }} className="absolute top-10 right-6 z-30 border-4 border-rose-500 text-rose-500 font-extrabold text-3xl px-4 py-1 rounded-xl tracking-wider transform rotate-12 animate-pulse bg-slate-950/40">
+                        NOPE
+                      </div>
+                    )}
+                    {(lastAction === 'superlike' || dragOffset.y < -40) && (
+                      <div style={{ opacity: isDragging ? Math.min(1, Math.abs(dragOffset.y) / 100) : 1 }} className="absolute top-20 left-1/2 -translate-x-1/2 z-30 border-4 border-sky-400 text-sky-400 font-extrabold text-3xl px-4 py-1 rounded-xl tracking-wider transform animate-bounce bg-slate-950/40">
+                        SUPER LIKE
+                      </div>
+                    )}
+
+                    <div className="relative w-full h-[62%] bg-slate-950 overflow-hidden">
+                      <img src={currentCard.photos[photoIndex]} alt={currentCard.name} className="w-full h-full object-cover object-center pointer-events-none" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-black/30 pointer-events-none" />
+                      {currentCard.photos.length > 1 && (
+                        <div className="absolute top-3 inset-x-4 flex gap-1.5 z-20">
+                          {currentCard.photos.map((_, idx) => (
+                            <div key={idx} className={`h-1 flex-1 rounded-full ${idx === photoIndex ? 'bg-white shadow' : 'bg-white/40'}`} />
+                          ))}
+                        </div>
+                      )}
+                      <div className="absolute inset-0 flex z-10">
+                        <div className="w-1/2 h-full cursor-pointer" onClick={prevPhoto} />
+                        <div className="w-1/2 h-full cursor-pointer" onClick={nextPhoto} />
+                      </div>
+                      <div className="absolute bottom-3 left-4 right-4 z-20 text-white pointer-events-none">
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-2xl font-bold tracking-tight">{currentCard.name}, {currentCard.age}</h2>
+                          {currentCard.verified && <CheckCircle className="w-5 h-5 text-sky-400" />}
+                        </div>
+                        <div className="flex items-center gap-1 text-slate-300 text-xs mt-0.5">
+                          <MapPin className="w-3.5 h-3.5 text-rose-400" />
+                          <span>{currentCard.distance}</span>
+                          <span className="mx-1">•</span>
+                          <span>{currentCard.occupation}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 p-4 overflow-y-auto bg-slate-900 space-y-3 text-slate-300 text-sm">
+                      <p className="leading-relaxed text-slate-200">{currentCard.bio}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {currentCard.interests.map((tag, i) => (
+                          <span key={i} className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-rose-300 border border-slate-700/60">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                      {currentCard.prompt && (
+                        <div className="bg-slate-800/80 rounded-2xl p-3 border border-slate-700/50 mt-2">
+                          <p className="text-xs font-semibold text-rose-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                            <Sparkles className="w-3 h-3 text-rose-400" />
+                            {currentCard.prompt.question}
+                          </p>
+                          <p className="text-slate-100 italic">"{currentCard.prompt.answer}"</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-4 bg-slate-900 border-t border-slate-800/80 flex items-center justify-around z-20">
+                      <button onClick={handleRewind} disabled={history.length === 0} className="w-12 h-12 rounded-full bg-slate-800 text-amber-400 flex items-center justify-center border border-slate-700 shadow-lg hover:scale-110 active:scale-95 disabled:opacity-40 transition-all cursor-pointer">
+                        <RotateCcw className="w-5 h-5" />
+                      </button>
+                      <button onClick={() => handleSwipe('pass')} className="w-14 h-14 rounded-full bg-slate-800 text-rose-500 flex items-center justify-center border border-slate-700 shadow-xl hover:bg-rose-500 hover:text-white hover:scale-110 active:scale-95 transition-all cursor-pointer">
+                        <X className="w-7 h-7 stroke-[2.5]" />
+                      </button>
+                      <button onClick={() => handleSwipe('superlike')} className="w-12 h-12 rounded-full bg-slate-800 text-sky-400 flex items-center justify-center border border-slate-700 shadow-lg hover:bg-sky-400 hover:text-white hover:scale-110 active:scale-95 transition-all cursor-pointer">
+                        <Star className="w-5 h-5 fill-current" />
+                      </button>
+                      <button onClick={() => handleSwipe('like')} className="w-14 h-14 rounded-full bg-gradient-to-tr from-rose-500 to-pink-500 text-white flex items-center justify-center shadow-lg shadow-rose-500/30 hover:scale-110 active:scale-95 transition-all cursor-pointer">
+                        <Heart className="w-7 h-7 fill-current" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-center p-8 bg-slate-900 rounded-3xl border border-slate-800 animate-fade-in">
+                    <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center mb-4 text-rose-500">
+                      <Sparkles className="w-10 h-10 animate-spin" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-white mb-2">You've reached the end!</h3>
+                    <p className="text-slate-400 text-sm max-w-xs mb-6">There are no more profiles in your area matching your current preferences.</p>
+                    <button onClick={resetProfiles} className="px-6 py-3 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-white font-semibold flex items-center gap-2 shadow-lg hover:opacity-90 active:scale-95 transition-all cursor-pointer">
+                      <RefreshCw className="w-4 h-4" /> Reset Cards Stack
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'explore' && (
+              <div className="w-full max-w-4xl h-full overflow-y-auto p-2 sm:p-4 space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Explore & Discover</h2>
+                  <p className="text-slate-400 text-sm">Find people based on your specific mood, vibe, or hobbies today.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {EXPLORE_TOPICS.map(topic => (
+                    <div key={topic.id} onClick={() => setActiveTab('discover')} className={`relative overflow-hidden rounded-2xl p-6 bg-gradient-to-br ${topic.color} cursor-pointer group shadow-xl transition-all transform hover:-translate-y-1`}>
+                      <div className="absolute right-4 bottom-2 text-6xl opacity-20 group-hover:scale-125 transition-transform">{topic.icon}</div>
+                      <span className="text-xs font-bold uppercase tracking-wider bg-black/30 backdrop-blur-md px-2.5 py-1 rounded-full text-white">{topic.count}</span>
+                      <h3 className="text-xl font-bold text-white mt-4">{topic.title}</h3>
+                      <p className="text-white/80 text-xs mt-1 max-w-[200px]">{topic.desc}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-slate-900 rounded-2xl p-6 border border-slate-800 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-rose-500/20 text-rose-400 rounded-xl"><Zap className="w-6 h-6" /></div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white">FkMe Blind Date Experience</h3>
+                      <p className="text-xs text-slate-400">Match based on personality & vibe before revealing photos.</p>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-slate-800/60 rounded-xl border border-slate-700/60 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="space-y-1 text-center sm:text-left">
+                      <p className="text-sm font-semibold text-rose-300">Daily Mystery Question Prompt:</p>
+                      <p className="text-white text-base font-medium">"What is your ideal Saturday night: live concert or cozy home cooking?"</p>
+                    </div>
+                    <button onClick={() => setShowBlindDateModal(true)} className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white font-semibold text-xs whitespace-nowrap shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer">
+                      Join Blind Chat
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'matches' && (
+              <div className="w-full max-w-4xl h-full flex flex-col sm:flex-row bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
+                <div className={`w-full sm:w-80 border-r border-slate-800 flex flex-col ${activeChat ? 'hidden sm:flex' : 'flex'}`}>
+                  <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-white">Matches & Chats</h2>
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400">{matches.length} active</span>
+                  </div>
+                  <div className="flex-1 overflow-y-auto divide-y divide-slate-800/60">
+                    {matches.map(m => (
+                      <div key={m.id} onClick={() => { setActiveChat(m); setMatches(prev => prev.map(item => item.id === m.id ? { ...item, unread: false } : item)); }} className={`flex items-center gap-3 p-3.5 cursor-pointer transition-colors ${activeChat?.id === m.id ? 'bg-slate-800' : 'hover:bg-slate-800/40'}`}>
+                        <div className="relative">
+                          <img src={m.profile.photos[0]} alt={m.profile.name} className="w-12 h-12 rounded-full object-cover border border-slate-700" />
+                          {m.unread && <span className="absolute top-0 right-0 w-3 h-3 bg-rose-500 rounded-full border-2 border-slate-900" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-semibold text-white text-sm truncate">{m.profile.name}</h4>
+                            <span className="text-[10px] text-slate-500">{m.timestamp}</span>
+                          </div>
+                          <p className={`text-xs truncate ${m.unread ? 'font-bold text-slate-200' : 'text-slate-400'}`}>{m.lastMessage}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={`flex-1 flex flex-col bg-slate-950 ${!activeChat ? 'hidden sm:flex' : 'flex'}`}>
+                  {activeChat ? (
+                    <>
+                      <div className="p-3.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => setActiveChat(null)} className="sm:hidden p-1 text-slate-400 hover:text-white">←</button>
+                          <img src={activeChat.profile.photos[0]} alt={activeChat.profile.name} className="w-10 h-10 rounded-full object-cover border border-slate-700" />
+                          <div>
+                            <h3 className="font-bold text-white text-sm leading-tight">{activeChat.profile.name}</h3>
+                            <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Online now
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 p-4 overflow-y-auto space-y-3">
+                        <div className="text-center my-2">
+                          <span className="text-[10px] bg-slate-800 text-slate-400 px-3 py-1 rounded-full">Matched on FkMe</span>
+                        </div>
+                        {activeChat.chatHistory.map((msg, idx) => (
+                          <div key={idx} className={`flex flex-col ${msg.sender === 'me' ? 'items-end' : 'items-start'}`}>
+                            <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.sender === 'me' ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-br-none' : 'bg-slate-800 text-slate-200 rounded-bl-none border border-slate-700/50'}`}>
+                              {msg.text}
+                            </div>
+                            <span className="text-[10px] text-slate-500 mt-1 px-1">{msg.time}</span>
+                          </div>
+                        ))}
+                        {isTyping && (
+                          <div className="flex items-center gap-2 text-slate-400 text-xs bg-slate-800/60 w-fit px-3 py-2 rounded-2xl border border-slate-700/50">
+                            <span className="w-1.5 h-1.5 bg-rose-400 rounded-full animate-bounce" />
+                            <span className="w-1.5 h-1.5 bg-rose-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+                            <span className="w-1.5 h-1.5 bg-rose-400 rounded-full animate-bounce [animation-delay:0.4s]" />
+                          </div>
+                        )}
+                        <div ref={chatEndRef} />
+                      </div>
+
+                      {showEmojiPicker && (
+                        <div className="p-2 bg-slate-900 border-t border-slate-800 flex gap-2 overflow-x-auto">
+                          {QUICK_EMOJIS.map((emoji, idx) => (
+                            <button key={idx} type="button" onClick={() => setMessageInput(prev => prev + emoji)} className="text-lg p-1.5 hover:bg-slate-800 rounded-lg transition-transform hover:scale-125">
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <form onSubmit={sendMessage} className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
+                        <button type="button" onClick={() => setShowEmojiPicker(v => !v)} className={`p-2 rounded-full transition-colors ${showEmojiPicker ? 'text-rose-400 bg-slate-800' : 'text-slate-400 hover:text-rose-400'}`}>
+                          <Smile className="w-5 h-5" />
+                        </button>
+                        <input
+                          type="text"
+                          value={messageInput}
+                          onChange={(e) => setMessageInput(e.target.value)}
+                          placeholder={`Message ${activeChat.profile.name.split(' ')[0]}...`}
+                          className="flex-1 bg-slate-800 text-slate-100 text-sm rounded-full px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                        />
+                        <button type="submit" disabled={!messageInput.trim()} className="p-2.5 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-white disabled:opacity-40 hover:scale-105 active:scale-95 transition-all shadow-md shadow-rose-500/20 cursor-pointer">
+                          <Send className="w-4 h-4" />
+                        </button>
+                      </form>
+                    </>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500">
+                      <MessageSquare className="w-12 h-12 stroke-[1.5] mb-2 text-slate-600" />
+                      <p className="text-base font-semibold text-slate-300">Select a match to start chatting</p>
+                      <p className="text-xs max-w-xs mt-1">Break the ice with a compliment or ask about their hobbies!</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'profile' && (
+              <div className="w-full max-w-2xl h-full overflow-y-auto p-4 space-y-6">
+                <div className="bg-slate-900 rounded-2xl p-6 border border-slate-800 flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left shadow-xl">
+                  <div className="relative">
+                    <img src={userProfile.photos[0]} alt="Profile" className="w-24 h-24 rounded-full object-cover border-4 border-slate-800 shadow-md" />
+                    <button onClick={() => setIsEditingProfile(true)} className="absolute bottom-0 right-0 p-2 rounded-full bg-rose-500 text-white shadow-lg hover:bg-rose-600 transition-colors cursor-pointer">
+                      <Camera className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center justify-center sm:justify-start gap-2">
+                      <h2 className="text-xl font-bold text-white">{userProfile.name}, {userProfile.age}</h2>
+                      <CheckCircle className="w-5 h-5 text-rose-500 fill-rose-500/20" />
+                    </div>
+                    <p className="text-xs text-slate-400">{userProfile.bio}</p>
+                    <div className="flex flex-wrap justify-center sm:justify-start gap-1.5 pt-2">
+                      {userProfile.interests.map((interest, i) => (
+                        <span key={i} className="px-2.5 py-0.5 rounded-full text-xs bg-slate-800 text-slate-300 border border-slate-700">{interest}</span>
+                      ))}
+                    </div>
+                    <div className="pt-2">
+                      <button onClick={() => setIsEditingProfile(true)} className="text-xs text-rose-400 hover:text-rose-300 font-semibold underline underline-offset-4 cursor-pointer">
+                        Edit Bio & Details
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 rounded-2xl p-6 border border-slate-800 space-y-6 shadow-xl">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2"><Sliders className="w-5 h-5 text-rose-500" /> Discovery Settings</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm font-medium">
+                      <span className="text-slate-300">Maximum Distance</span>
+                      <span className="text-rose-400">{userProfile.distanceRange} miles</span>
+                    </div>
+                    <input type="range" min="5" max="100" value={userProfile.distanceRange} onChange={(e) => setUserProfile({ ...userProfile, distanceRange: parseInt(e.target.value) })} className="w-full accent-rose-500 h-2 bg-slate-800 rounded-lg cursor-pointer" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm font-medium">
+                      <span className="text-slate-300">Age Preference</span>
+                      <span className="text-rose-400">{userProfile.ageRange[0]} - {userProfile.ageRange[1]}</span>
+                    </div>
+                    <input type="range" min="18" max="60" value={userProfile.ageRange[1]} onChange={(e) => setUserProfile({ ...userProfile, ageRange: [21, parseInt(e.target.value)] })} className="w-full accent-rose-500 h-2 bg-slate-800 rounded-lg cursor-pointer" />
+                  </div>
+                  <div className="space-y-2">
+                    <span className="text-sm font-medium text-slate-300">Show Me</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['Women', 'Men', 'Everyone'].map((type) => (
+                        <button key={type} onClick={() => setUserProfile({ ...userProfile, genderPref: type })} className={`py-2 rounded-xl text-xs font-semibold transition-all ${userProfile.genderPref === type ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-4 pt-4 border-t border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <div><h4 className="text-sm font-semibold text-slate-200">Incognito Mode</h4><p className="text-xs text-slate-400">Only show profile to people you like.</p></div>
+                      <input type="checkbox" checked={userProfile.incognito} onChange={(e) => setUserProfile({ ...userProfile, incognito: e.target.checked })} className="w-5 h-5 accent-rose-500 cursor-pointer rounded" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div><h4 className="text-sm font-semibold text-slate-200">Push Notifications</h4><p className="text-xs text-slate-400">Get notified about matches & messages.</p></div>
+                      <input type="checkbox" checked={userProfile.notifications} onChange={(e) => setUserProfile({ ...userProfile, notifications: e.target.checked })} className="w-5 h-5 accent-rose-500 cursor-pointer rounded" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div><h4 className="text-sm font-semibold text-slate-200">Sound Effects</h4><p className="text-xs text-slate-400">Audio feedback for swipes & matches.</p></div>
+                      <input type="checkbox" checked={userProfile.soundEffects} onChange={(e) => { setUserProfile({ ...userProfile, soundEffects: e.target.checked }); if (e.target.checked) playSoundEffect('swipe', true); }} className="w-5 h-5 accent-rose-500 cursor-pointer rounded" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </main>
+
+          {isEditingProfile && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+              <div className="relative w-full max-w-md bg-slate-900 rounded-3xl p-6 border border-slate-800 shadow-2xl space-y-4">
+                <h3 className="text-xl font-bold text-white">Edit Profile Details</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Your Name</label>
+                    <input type="text" value={editFormData.name} onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-rose-500" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Age</label>
+                    <input type="number" value={editFormData.age} onChange={(e) => setEditFormData({ ...editFormData, age: parseInt(e.target.value) || 18 })} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-rose-500" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Bio</label>
+                    <textarea rows={3} value={editFormData.bio} onChange={(e) => setEditFormData({ ...editFormData, bio: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-rose-500" />
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button onClick={() => { setUserProfile(prev => ({ ...prev, name: editFormData.name, age: editFormData.age, bio: editFormData.bio })); setIsEditingProfile(false); }} className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white font-semibold text-sm shadow-md hover:opacity-90 transition-opacity cursor-pointer">Save Changes</button>
+                  <button onClick={() => setIsEditingProfile(false)} className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-semibold text-sm hover:bg-slate-700 transition-colors cursor-pointer">Cancel</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showBlindDateModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in">
+              <div className="relative w-full max-w-md bg-slate-900 rounded-3xl p-6 border border-slate-800 shadow-2xl space-y-5 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center mx-auto shadow-lg shadow-rose-500/20">
+                  <Zap className="w-8 h-8 text-white fill-white" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-white">FkMe Blind Matching</h3>
+                  <p className="text-xs text-slate-400 mt-1">Answer honestly to discover your vibe match!</p>
+                </div>
+                <div className="p-4 bg-slate-800/80 rounded-2xl border border-slate-700/60 text-left">
+                  <p className="text-xs font-semibold text-rose-400 uppercase tracking-wider mb-2">Mystery Prompt:</p>
+                  <p className="text-sm font-medium text-white mb-4">"What is your ideal Saturday night: live concert or cozy home cooking?"</p>
+                  <div className="space-y-2">
+                    <button onClick={() => { setBlindDateAnswer("Live concert & dancing!"); setBlindDateMatched(true); }} className={`w-full p-3 rounded-xl text-xs font-semibold text-left transition-all ${blindDateAnswer === "Live concert & dancing!" ? 'bg-rose-500 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'}`}>
+                      🎸 Energetic live concert & night out
+                    </button>
+                    <button onClick={() => { setBlindDateAnswer("Cozy home cooking & movies"); setBlindDateMatched(true); }} className={`w-full p-3 rounded-xl text-xs font-semibold text-left transition-all ${blindDateAnswer === "Cozy home cooking & movies" ? 'bg-rose-500 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'}`}>
+                      🍷 Cooking handmade dinner & watching movies
+                    </button>
+                  </div>
+                </div>
+                {blindDateMatched && (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-xs animate-fade-in">
+                    ✨ Match found with Sophia Lin! You both share the same Saturday vibe.
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  {blindDateMatched ? (
+                    <button onClick={() => { setShowBlindDateModal(false); const sophia = matches.find(m => m.profile.name.includes("Sophia")); if (sophia) setActiveChat(sophia); setActiveTab('matches'); }} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold text-sm shadow-md hover:opacity-90 transition-opacity cursor-pointer">
+                      Enter Blind Chat With Sophia
+                    </button>
+                  ) : (
+                    <button onClick={() => setShowBlindDateModal(false)} className="w-full py-2.5 rounded-xl bg-slate-800 text-slate-400 text-sm hover:text-white">Close</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showMatchModal && matchedProfile && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-lg animate-fade-in">
+              <ConfettiEffect />
+              <div className="relative w-full max-w-sm bg-gradient-to-b from-slate-900 to-slate-950 rounded-3xl p-6 border border-slate-800 shadow-2xl text-center space-y-6 z-10">
+                <div>
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-rose-500/20 text-rose-500 mb-2">
+                    <Flame className="w-7 h-7 fill-current animate-bounce" />
+                  </div>
+                  <h2 className="text-3xl font-black tracking-wider bg-gradient-to-r from-rose-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+                    IT'S A MATCH!
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">You and {matchedProfile.name} liked each other.</p>
+                </div>
+                <div className="flex items-center justify-center -space-x-6 py-2">
+                  <img src={userProfile.photos[0]} alt="You" className="w-24 h-24 rounded-full object-cover border-4 border-slate-900 shadow-xl ring-2 ring-rose-500/50" />
+                  <img src={matchedProfile.photos[0]} alt={matchedProfile.name} className="w-24 h-24 rounded-full object-cover border-4 border-slate-900 shadow-xl ring-2 ring-pink-500/50" />
+                </div>
+                <div className="space-y-2">
+                  <button onClick={() => { setShowMatchModal(false); const existingMatch = matches.find(m => m.profile.id === matchedProfile.id); if (existingMatch) setActiveChat(existingMatch); setActiveTab('matches'); }} className="w-full py-3.5 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold text-sm shadow-lg shadow-rose-500/30 hover:opacity-90 active:scale-95 transition-all cursor-pointer">
+                    Send a Message
+                  </button>
+                  <button onClick={() => setShowMatchModal(false)} className="w-full py-3 rounded-full bg-slate-800 text-slate-300 font-semibold text-sm hover:bg-slate-700 active:scale-95 transition-colors cursor-pointer">
+                    Keep Swiping
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
